@@ -120,7 +120,8 @@ void setup() {
 	// bootloader is trying to install a firmware bin
 	for (uint8 x = 0 ; x < 30 ; x++) {
 		DBG_PRINT(".");
-		delay(1000);
+		blink();
+		delay(500);
 	}
 
 	for (uint8 x = 0 ; x * 1000 < SPI_BLOCKOUT_PERIOD ; x = x + 1) {
