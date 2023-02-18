@@ -30,30 +30,67 @@ bool ESPWebDAV::init(int chipSelectPin, SPISettings spiSettings, int serverPort)
 // ------------------------
 void ESPWebDAV::handleNotFound() {
 // ------------------------
+	// reboot 
+	if (method.equals("GET") && uri.equalsIgnoreCase("/reboot")) {
+		send("200 OK", "text/plain", "processing reboot request. . .");
+		reboot = true;
+		return;
+	}
 
-  // reboot 
-  if (method.equals("GET") && uri.equalsIgnoreCase("/reboot")) {
-    send("200 OK", "text/plain", "processing reboot request. . .");
-    reboot = true;
-    return;
-  }
+	// save hostname 
+	if (method.equals("GET") && uri.startsWith("/hostname/")) {
+		String hostname = uri.substring(uri.lastIndexOf("/") + 1);
+		memset(config.hostname, '\0', HOSTNAME_LEN);
+		hostname.toCharArray(config.hostname, HOSTNAME_LEN);
+		config.hostname_flag = 9;
 
-  // save hostname 
-  if (method.equals("GET") && uri.startsWith("/hostname/")) {
-    String hostname = uri.substring(uri.lastIndexOf("/") + 1);
-    memset(config.hostname, '\0', HOSTNAME_LEN);
-    hostname.toCharArray(config.hostname, HOSTNAME_LEN);
+		EEPROM.begin(EEPROM_SIZE);
+		uint8_t *p = (uint8_t*)(&config);
+		for (uint8 i = 0; i < sizeof(config); i++) {
+		EEPROM.write(i, *(p + i));
+		}
+		EEPROM.commit();    
 
-    EEPROM.begin(EEPROM_SIZE);
-    uint8_t *p = (uint8_t*)(&config);
-    for (int i = 0; i < sizeof(config); i++) {
-      EEPROM.write(i, *(p + i));
-    }
-    EEPROM.commit();    
+		send("200 OK", "text/plain", "hostname saved");
+		return;
+	}
 
-    send("200 OK", "text/plain", "hostname saved");
-    return;
-  }
+	// save ssid 
+	if (method.equals("GET") && uri.startsWith("/ssid/")) {
+		String ssid = uri.substring(uri.lastIndexOf("/") + 1);
+		memset(config.ssid, '\0', WIFI_SSID_LEN);
+		ssid.toCharArray(config.ssid, WIFI_SSID_LEN);
+		config.ssid_flag = 9;
+
+		EEPROM.begin(EEPROM_SIZE);
+		uint8_t *p = (uint8_t*)(&config);
+		for (uint8 i = 0; i < sizeof(config); i++) {
+		EEPROM.write(i, *(p + i));
+		}
+		EEPROM.commit();    
+
+		send("200 OK", "text/plain", "ssid saved");
+		return;
+	}
+
+	// save pwd 
+	if (method.equals("GET") && uri.startsWith("/password/")) {
+		String pwd = uri.substring(uri.lastIndexOf("/") + 1);
+		memset(config.pwd, '\0', WIFI_PASSWD_LEN);
+		config.pwd_flag = 9;
+		pwd.toCharArray(config.pwd, WIFI_PASSWD_LEN);
+
+		EEPROM.begin(EEPROM_SIZE);
+		uint8_t *p = (uint8_t*)(&config);
+		for (uint8 i = 0; i < sizeof(config); i++) {
+		EEPROM.write(i, *(p + i));
+		}
+		EEPROM.commit();    
+
+		send("200 OK", "text/plain", "network password saved");
+		return;
+	}
+
 
 	String message = "Not found\n";
 	message += "URI: ";
@@ -287,12 +324,14 @@ void ESPWebDAV::sendPropResponse(boolean recursing, FatFile *curFile)	{
 // String fullResPath = "http://" + hostHeader + uri;
 	String fullResPath = uri;
 
-	if(recursing)
-		if(fullResPath.endsWith("/"))
+	if (recursing) {
+		if (fullResPath.endsWith("/")) {
 			fullResPath += String(buf);
-		else
+		} else {
 			fullResPath += "/" + String(buf);
-
+		}
+	}
+	
 	// get file modified time
 	dir_t dir;
 	curFile->dirEntry(&dir);

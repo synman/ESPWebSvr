@@ -12,15 +12,19 @@
 #define LED_OFF				{digitalWrite(2, HIGH);}
 
 #define HOSTNAME_LEN 32
+#define WIFI_SSID_LEN 32
+#define WIFI_PASSWD_LEN 64
+
 #define EEPROM_SIZE 512
 
 typedef struct config_type {
+  unsigned char hostname_flag;
   char hostname[HOSTNAME_LEN];
-  // unsigned char flag; // Was saved before?
-  // char ssid[WIFI_SSID_LEN];
-  // char psw[WIFI_PASSWD_LEN];
+  unsigned char ssid_flag;
+  char ssid[WIFI_SSID_LEN];
+  unsigned char pwd_flag;
+  char pwd[WIFI_PASSWD_LEN];
 } CONFIG_TYPE;
-
 
 // constants for WebServer
 #define CONTENT_LENGTH_UNKNOWN ((size_t) -1)

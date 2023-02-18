@@ -1,6 +1,9 @@
 // Using the WebDAV server with Rigidbot 3D printer.
 // Printer controller is a variation of Rambo running Marlin firmware
 
+#include <Arduino.h>
+#include <ArduinoOTA.h>
+
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <EEPROM.h>
@@ -24,30 +27,29 @@
 #define SCLK		14
 #define CS_SENSE	5
 
-#define HOSTNAME		"espwebdav"
 #define SERVER_PORT		80
 #define SPI_BLOCKOUT_PERIOD	20000UL
 
 uint32 sys_time = system_get_time();
 CONFIG_TYPE config;
 
-char *hostname;
-const char *ssid = 		"ssid";
-const char *password = 	"xxx";
+const char *hostname 	= "espwebdav";
+const char *ssid 		= "xxxx";
+const char *pwd 		= "xxxx";
 
 ESPWebDAV dav;
 String statusMessage;
 bool initFailed = false;
 
-volatile long spiBlockoutTime = 0;
+volatile unsigned long spiBlockoutTime = 0;
 bool weHaveBus = false;
 
 // ------------------------
 void setup() {
-  DBG_INIT(115200);
+  	DBG_INIT(115200);
 	DBG_PRINTLN("\nESPWebDAV setup");
 	
-// ------------------------
+	// ------------------------
 	// ----- GPIO -------
 	// Detect when other master uses SPI bus
 	pinMode(CS_SENSE, INPUT);
@@ -56,21 +58,26 @@ void setup() {
 			spiBlockoutTime = millis() + SPI_BLOCKOUT_PERIOD;
 	}, FALLING);
 	
-  EEPROM.begin(EEPROM_SIZE);
-  uint8_t *p = (uint8_t*)(&config);
-  for (int i = 0; i < sizeof(config); i++)
-  {
-    *(p + i) = EEPROM.read(i);
-  }
-  EEPROM.commit();
+	EEPROM.begin(EEPROM_SIZE);
+	uint8_t *p = (uint8_t*)(&config);
+	for (uint8 i = 0; i < sizeof(config); i++)
+	{
+		*(p + i) = EEPROM.read(i);
+	}
+	EEPROM.commit();
 
-  DBG_PRINT("config host="); DBG_PRINTLN(config.hostname);
-
-  if (strlen(config.hostname) > 0) {
-    hostname = config.hostname;
-  } else {
-    hostname = HOSTNAME;
-  }
+	if (config.hostname_flag == 9) {
+		DBG_PRINT("config host="); DBG_PRINTLN(config.hostname);
+		hostname = config.hostname;
+	} 
+	if (config.ssid_flag == 9) {
+		DBG_PRINT("config ssid="); DBG_PRINTLN(config.ssid);
+		ssid = config.ssid;
+	} 
+	if (config.pwd_flag == 9) {
+		DBG_PRINT("config pwd="); DBG_PRINTLN(config.pwd);
+		pwd = config.pwd;
+	} 
 
 	INIT_LED;
 	blink();
@@ -85,7 +92,7 @@ void setup() {
 	WiFi.setAutoConnect(false);
 	WiFi.mode(WIFI_STA);
 	WiFi.setPhyMode(WIFI_PHY_MODE_11N);
-	WiFi.begin(ssid, password);
+	WiFi.begin(ssid, pwd);
 
 	// Wait for connection
 	while(WiFi.status() != WL_CONNECTED) {
@@ -93,22 +100,24 @@ void setup() {
 		DBG_PRINT(".");
 	}
 
-  if (!MDNS.begin(hostname)) { 
-    DBG_PRINTLN("\nError setting up mDNS responder!");
-  } else {
-    DBG_PRINTLN("\nmDNS successfully activated");
-    MDNS.update();
-  }
+	if (!MDNS.begin(hostname)) { 
+		DBG_PRINTLN("\nError setting up mDNS responder!");
+	} else {
+		DBG_PRINTLN("\nmDNS successfully activated");
+		MDNS.update();
+	}
   
-	DBG_PRINTLN("");
-  DBG_PRINT("Hostname: "); DBG_PRINTLN(hostname);
-	DBG_PRINT("Connected to: "); DBG_PRINTLN(ssid);
-	DBG_PRINT("IP address: "); DBG_PRINTLN(WiFi.localIP());
-	DBG_PRINT("RSSI: "); DBG_PRINTLN(WiFi.RSSI());
-	DBG_PRINT("Mode: "); DBG_PRINTLN(WiFi.getPhyMode());
+   	ArduinoOTA.begin();
 
-  // sleep for an additional 30 seconds
-  delay(30000);
+	DBG_PRINTLN("");
+  	DBG_PRINT("    Hostname: "); DBG_PRINTLN(hostname);
+	DBG_PRINT("Connected to: "); DBG_PRINTLN(ssid);
+	DBG_PRINT("  IP address: "); DBG_PRINTLN(WiFi.localIP());
+	DBG_PRINT("        RSSI: "); DBG_PRINTLN(WiFi.RSSI());
+	DBG_PRINT("        Mode: "); DBG_PRINTLN(WiFi.getPhyMode());
+
+	// sleep for an additional 30 seconds
+	delay(30000);
 
 	// ----- SD Card and Server -------
 	// Check to see if other master is using the SPI bus
@@ -120,15 +129,14 @@ void setup() {
 	// start the SD DAV server
 	if(!dav.init(SD_CS, SPI_FULL_SPEED, SERVER_PORT))		{
 		statusMessage = "Failed to initialize SD Card";
-		DBG_PRINT("ERROR: "); DBG_PRINTLN(statusMessage);
+		DBG_PRINT("\nERROR: "); DBG_PRINTLN(statusMessage);
 		// indicate error on LED
 		errorBlink();
 		initFailed = true;
-	}
-	else {
+	} else {
 		blink();
-	  DBG_PRINTLN("WebDAV server started");
-  }
+		DBG_PRINTLN("\nWebDAV server started");
+  	}
 
 	relenquishBusControl();
 }
@@ -138,6 +146,9 @@ void setup() {
 // ------------------------
 void loop() {
 // ------------------------
+	MDNS.update();
+	ArduinoOTA.handle();
+
 	if(millis() < spiBlockoutTime)
 		blink();
 
@@ -156,36 +167,34 @@ void loop() {
 		relenquishBusControl();
 	}
 
-  // reboot every 6 hours
-  if (sys_time / 1000 / 1000 + 21600 <= system_get_time() / 1000 / 1000)  {
-    DBG_PRINT("Requesting scheduled reboot ref="); DBG_PRINT(sys_time / 1000 / 1000 + 21600); DBG_PRINT(" cur="); DBG_PRINTLN(system_get_time() / 1000 / 1000);
-    reboot = true;    
-  }
+	// reboot every 6 hours
+	if (sys_time / 1000 / 1000 + 21600 <= system_get_time() / 1000 / 1000)  {
+		DBG_PRINT("Requesting scheduled reboot ref="); DBG_PRINT(sys_time / 1000 / 1000 + 21600); DBG_PRINT(" cur="); DBG_PRINTLN(system_get_time() / 1000 / 1000);
+		reboot = true;    
+	}
 
-  if (reboot || initFailed) {
-    initFailed = false;
-    reboot = false;
-    DBG_PRINTLN("REBOOTING");
-    errorBlink();
-    #if BOOT_MODE == BM_ESP_RESTART
-      Serial.println("\n\nRebooting with ESP.restart()");
-      ESP.restart();
-    #elif BOOT_MODE == BM_ESP_RESET
-      Serial.println("\n\nRebooting with ESP.reset()");
-      ESP.reset();
-    #else 
-      #if BOOT_MODE == BM_WDT_HARDWARE      
-        Serial.println("\n\nRebooting with hardware watchdog timeout reset");
-        ESP.wdtDisable();
-      #else
-        Serial.println("\n\nRebooting with sofware watchdog timeout reset");
-      #endif  
-      while (1) {}  // timeout!
-    #endif 
-  }
+	if (reboot || initFailed) {
+		initFailed = false;
+		reboot = false;
+		DBG_PRINTLN("REBOOTING");
+		errorBlink();
+		#if BOOT_MODE == BM_ESP_RESTART
+		Serial.println("\n\nRebooting with ESP.restart()");
+		ESP.restart();
+		#elif BOOT_MODE == BM_ESP_RESET
+		Serial.println("\n\nRebooting with ESP.reset()");
+		ESP.reset();
+		#else 
+		#if BOOT_MODE == BM_WDT_HARDWARE      
+			Serial.println("\n\nRebooting with hardware watchdog timeout reset");
+			ESP.wdtDisable();
+		#else
+			Serial.println("\n\nRebooting with sofware watchdog timeout reset");
+		#endif  
+		while (1) {}  // timeout!
+		#endif 
+	}
 }
-
-
 
 // ------------------------
 void takeBusControl()	{
@@ -198,8 +207,6 @@ void takeBusControl()	{
 	pinMode(SD_CS, OUTPUT);
 }
 
-
-
 // ------------------------
 void relenquishBusControl()	{
 // ------------------------
@@ -211,9 +218,6 @@ void relenquishBusControl()	{
 	weHaveBus = false;
 }
 
-
-
-
 // ------------------------
 void blink()	{
 // ------------------------
@@ -222,8 +226,6 @@ void blink()	{
 	LED_OFF; 
 	delay(400);
 }
-
-
 
 // ------------------------
 void errorBlink()	{
@@ -235,6 +237,3 @@ void errorBlink()	{
 		delay(50);
 	}
 }
-
-
-
