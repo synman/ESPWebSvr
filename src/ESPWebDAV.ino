@@ -83,6 +83,7 @@ void setup() {
 	WiFi.begin(ssid, pwd);
 
 	// Wait for connection
+	DBG_PRINT("Connecting to WiFi .");
 	while(WiFi.status() != WL_CONNECTED) {
 		blink();
 		DBG_PRINT(".");
@@ -104,6 +105,8 @@ void setup() {
 	DBG_PRINT("        RSSI: "); DBG_PRINTLN(WiFi.RSSI());
 	DBG_PRINT("        Mode: "); DBG_PRINTLN(WiFi.getPhyMode());
 
+	DBG_PRINT("\nAttaching to the SD bus .");
+
 	// Detect when other master uses SPI bus
 	pinMode(CS_SENSE, INPUT);
 	attachInterrupt(CS_SENSE, []() {
@@ -111,19 +114,27 @@ void setup() {
 			spiBlockoutTime = millis() + SPI_BLOCKOUT_PERIOD;
 	}, FALLING);
 
-	// wait for other master to assert SPI bus first
-	delay(SPI_BLOCKOUT_PERIOD);
-  
-	// sleep for an additional 30 seconds
+	// sleep for 30 seconds
 	// we don't want to be touching the SD card 
 	// if we are connected to a printer and its
 	// bootloader is trying to install a firmware bin
-	delay(30000);
+	for (uint8 x = 0 ; x < 30 ; x++) {
+		DBG_PRINT(".");
+		delay(1000);
+	}
 
+	for (uint8 x = 0 ; x * 1000 < SPI_BLOCKOUT_PERIOD ; x = x + 1) {
+		// wait for other master to assert SPI bus first
+		DBG_PRINT(".");
+		delay(1000);
+	}
+  
 	// ----- SD Card and Server -------
 	// Check to see if other master is using the SPI bus
-	while(millis() < spiBlockoutTime)
+	while(millis() < spiBlockoutTime) {
+		DBG_PRINT(".");
 		blink();
+	}
 	
 	takeBusControl();
 	
