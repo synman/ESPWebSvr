@@ -127,7 +127,7 @@ void setup() {
 	takeBusControl();
 	
 	// start the SD DAV server
-	if(!dav.init(SD_CS, SPI_FULL_SPEED, SERVER_PORT))		{
+	if(!dav.init(SD_CS, SERVER_PORT)) {
 		statusMessage = "Failed to initialize SD Card";
 		DBG_PRINT("\nERROR: "); DBG_PRINTLN(statusMessage);
 		// indicate error on LED

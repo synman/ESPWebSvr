@@ -17,14 +17,15 @@ const char *wdays[]  = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 bool reboot = false;
 
 // ------------------------
-bool ESPWebDAV::init(int chipSelectPin, SPISettings spiSettings, int serverPort) {
+bool ESPWebDAV::init(int chipSelectPin, int serverPort) {
 // ------------------------
 	// start the wifi server
 	server = new WiFiServer(serverPort);
 	server->begin();
 	
 	// initialize the SD card
-	return sd.begin(chipSelectPin, spiSettings);
+	// return sd.begin(chipSelectPin, spiSettings);
+	return sd.begin(chipSelectPin);
 }
 
 // ------------------------
@@ -150,8 +151,9 @@ void ESPWebDAV::handleRequest(String blank)	{
 	ResourceType resource = RESOURCE_NONE;
 
 	// does uri refer to a file or directory or a null?
-	FatFile tFile;
-	if(tFile.open(sd.vwd(), uri.c_str(), O_READ))	{
+	File32 tFile;
+	// if(tFile.open(sd.vwd(), uri.c_str(), O_READ))	{)
+	if (tFile.open(uri.c_str(), O_READ)) {
 		resource = tFile.isDir() ? RESOURCE_DIR : RESOURCE_FILE;
 		tFile.close();
 	}
@@ -295,13 +297,13 @@ void ESPWebDAV::handleProp(ResourceType resource)	{
 	sendContent(F("<D:multistatus xmlns:D=\"DAV:\">"));
 
 	// open this resource
-	SdFile baseFile;
+	File32 baseFile;
 	baseFile.open(uri.c_str(), O_READ);
 	sendPropResponse(false, &baseFile);
 
 	if((resource == RESOURCE_DIR) && (depth == DEPTH_CHILD))	{
 		// append children information to message
-		SdFile childFile;
+		File32 childFile;
 		while(childFile.openNext(&baseFile, O_READ)) {
 			yield();
 			sendPropResponse(true, &childFile);
@@ -316,7 +318,7 @@ void ESPWebDAV::handleProp(ResourceType resource)	{
 
 
 // ------------------------
-void ESPWebDAV::sendPropResponse(boolean recursing, FatFile *curFile)	{
+void ESPWebDAV::sendPropResponse(boolean recursing, File32 *curFile)	{
 // ------------------------
 	char buf[255];
 	curFile->getName(buf, sizeof(buf));
@@ -333,17 +335,17 @@ void ESPWebDAV::sendPropResponse(boolean recursing, FatFile *curFile)	{
 	}
 	
 	// get file modified time
-	dir_t dir;
+	DirFat_t dir;
 	curFile->dirEntry(&dir);
 
 	// convert to required format
 	tm tmStr;
-	tmStr.tm_hour = FAT_HOUR(dir.lastWriteTime);
-	tmStr.tm_min = FAT_MINUTE(dir.lastWriteTime);
-	tmStr.tm_sec = FAT_SECOND(dir.lastWriteTime);
-	tmStr.tm_year = FAT_YEAR(dir.lastWriteDate) - 1900;
-	tmStr.tm_mon = FAT_MONTH(dir.lastWriteDate) - 1;
-	tmStr.tm_mday = FAT_DAY(dir.lastWriteDate);
+	tmStr.tm_hour = (int) FAT_HOUR((int) dir.modifyTime);
+	tmStr.tm_min =(int) FAT_MINUTE((int) dir.modifyTime);
+	tmStr.tm_sec = (int) FAT_SECOND((int) dir.modifyTime);
+	tmStr.tm_year = (int) FAT_YEAR((int) dir.modifyDate) - 1900;
+	tmStr.tm_mon = (int) FAT_MONTH((int) dir.modifyDate) - 1;
+	tmStr.tm_mday = (int) FAT_DAY((int) dir.modifyDate);
 	time_t t2t = mktime(&tmStr);
 	tm *gTm = gmtime(&t2t);
 
@@ -390,7 +392,7 @@ void ESPWebDAV::handleGet(ResourceType resource, bool isGet)	{
 	if(resource != RESOURCE_FILE)
 		return handleNotFound();
 
-	SdFile rFile;
+	File32 rFile;
 	long tStart = millis();
 	uint8_t buf[1460];
 	rFile.open(uri.c_str(), O_READ);
@@ -432,7 +434,7 @@ void ESPWebDAV::handlePut(ResourceType resource)	{
 	if(resource == RESOURCE_DIR)
 		return handleNotFound();
 
-	SdFile nFile;
+	File32 nFile;
 	sendHeader("Allow", "PROPFIND,OPTIONS,DELETE,COPY,MOVE,HEAD,POST,PUT,GET");
 
 	// if file does not exist, create it
@@ -463,14 +465,14 @@ void ESPWebDAV::handlePut(ResourceType resource)	{
 		size_t contBlocks = (contentLen/WRITE_BLOCK_CONST + 1);
 		uint32_t bgnBlock, endBlock;
 
-		if (!nFile.createContiguous(sd.vwd(), uri.c_str(), contBlocks * WRITE_BLOCK_CONST))
+		if (!nFile.createContiguous(uri.c_str(), contBlocks * WRITE_BLOCK_CONST))
 			return handleWriteError("File create contiguous sections failed", &nFile);
 
 		// get the location of the file's blocks
 		if (!nFile.contiguousRange(&bgnBlock, &endBlock))
 			return handleWriteError("Unable to get contiguous range", &nFile);
 
-		if (!sd.card()->writeStart(bgnBlock, contBlocks))
+		if (!sd.card()->writeStart(bgnBlock))
 			return handleWriteError("Unable to start writing contiguous range", &nFile);
 
 		// read data from stream and write to the file
@@ -515,7 +517,7 @@ void ESPWebDAV::handlePut(ResourceType resource)	{
 
 
 // ------------------------
-void ESPWebDAV::handleWriteError(String message, FatFile *wFile)	{
+void ESPWebDAV::handleWriteError(String message, File32 *wFile)	{
 // ------------------------
 	// close this file
 	wFile->close();

@@ -41,11 +41,37 @@ extern CONFIG_TYPE config;
   #define FUNCTIONS_H_INCLUDED
   void blink();
   void errorBlink();
+
+/** year part of FAT directory date field */
+static inline uint16_t FAT_YEAR(uint16_t fatDate) {
+  return 1980 + (fatDate >> 9);
+}
+/** month part of FAT directory date field */
+static inline uint8_t FAT_MONTH(uint16_t fatDate) {
+  return (fatDate >> 5) & 0XF;
+}
+/** day part of FAT directory date field */
+static inline uint8_t FAT_DAY(uint16_t fatDate) {
+  return fatDate & 0X1F;
+}
+/** hour part of FAT directory time field */
+static inline uint8_t FAT_HOUR(uint16_t fatTime) {
+  return fatTime >> 11;
+}
+/** minute part of FAT directory time field */
+static inline uint8_t FAT_MINUTE(uint16_t fatTime) {
+  return(fatTime >> 5) & 0X3F;
+}
+/** second part of FAT directory time field */
+static inline uint8_t FAT_SECOND(uint16_t fatTime) {
+  return 2*(fatTime & 0X1F);
+}
+
 #endif
 
 class ESPWebDAV	{
 public:
-	bool init(int chipSelectPin, SPISettings spiSettings, int serverPort);
+	bool init(int chipSelectPin, int serverPort);
 	bool isClientWaiting();
 	void handleClient(String blank = "");
 	void rejectClient(String rejectMessage);
@@ -62,10 +88,10 @@ protected:
 	void handleUnlock(ResourceType resource);
 	void handlePropPatch(ResourceType resource);
 	void handleProp(ResourceType resource);
-	void sendPropResponse(boolean recursing, FatFile *curFile);
+	void sendPropResponse(boolean recursing, File32 *curFile);
 	void handleGet(ResourceType resource, bool isGet);
 	void handlePut(ResourceType resource);
-	void handleWriteError(String message, FatFile *wFile);
+	void handleWriteError(String message, File32 *wFile);
 	void handleDirectoryCreate(ResourceType resource);
 	void handleMove(ResourceType resource);
 	void handleDelete(ResourceType resource);

@@ -31,9 +31,6 @@ String ESPWebDAV::getMimeType(String path) {
 	return "application/octet-stream";
 }
 
-
-
-
 // ------------------------
 String ESPWebDAV::urlDecode(const String& text)	{
 // ------------------------
@@ -60,10 +57,6 @@ String ESPWebDAV::urlDecode(const String& text)	{
 	return decoded;
 }
 
-
-
-
-
 // ------------------------
 String ESPWebDAV::urlToUri(String url)	{
 // ------------------------
@@ -75,16 +68,11 @@ String ESPWebDAV::urlToUri(String url)	{
 		return url;
 }
 
-
-
 // ------------------------
 bool ESPWebDAV::isClientWaiting() {
 // ------------------------
 	return server->hasClient();
 }
-
-
-
 
 // ------------------------
 void ESPWebDAV::handleClient(String blank) {
@@ -92,15 +80,11 @@ void ESPWebDAV::handleClient(String blank) {
 	processClient(&ESPWebDAV::handleRequest, blank);
 }
 
-
-
 // ------------------------
 void ESPWebDAV::rejectClient(String rejectMessage) {
 // ------------------------
 	processClient(&ESPWebDAV::handleReject, rejectMessage);
 }
-
-
 
 // ------------------------
 void ESPWebDAV::processClient(THandlerFunction handler, String message) {
@@ -139,10 +123,6 @@ void ESPWebDAV::processClient(THandlerFunction handler, String message) {
 	// close the connection
 	client.stop();
 }
-
-
-
-
 
 // ------------------------
 bool ESPWebDAV::parseRequest() {
@@ -195,9 +175,6 @@ bool ESPWebDAV::parseRequest() {
 	return true;
 }
 
-
-
-
 // ------------------------
 void ESPWebDAV::sendHeader(const String& name, const String& value, bool first) {
 // ------------------------
@@ -209,8 +186,6 @@ void ESPWebDAV::sendHeader(const String& name, const String& value, bool first) 
 		_responseHeaders += headerLine;
 }
 
-
-
 // ------------------------
 void ESPWebDAV::send(String code, const char* content_type, const String& content) {
 // ------------------------
@@ -221,8 +196,6 @@ void ESPWebDAV::send(String code, const char* content_type, const String& conten
 	if(content.length())
 		sendContent(content);
 }
-
-
 
 // ------------------------
 void ESPWebDAV::_prepareHeader(String& response, String code, const char* content_type, size_t contentLength) {
@@ -246,8 +219,6 @@ void ESPWebDAV::_prepareHeader(String& response, String code, const char* conten
 	response += _responseHeaders;
 	response += "\r\n";
 }
-
-
 
 // ------------------------
 void ESPWebDAV::sendContent(const String& content) {
@@ -274,8 +245,6 @@ void ESPWebDAV::sendContent(const String& content) {
 	}
 }
 
-
-
 // ------------------------
 void ESPWebDAV::sendContent_P(PGM_P content) {
 // ------------------------
@@ -301,14 +270,11 @@ void ESPWebDAV::sendContent_P(PGM_P content) {
 	}
 }
 
-
-
 // ------------------------
 void ESPWebDAV::setContentLength(size_t len)	{
 // ------------------------
 	_contentLength = len;
 }
-
 
 // ------------------------
 size_t ESPWebDAV::readBytesWithTimeout(uint8_t *buf, size_t bufSize) {
@@ -324,7 +290,6 @@ size_t ESPWebDAV::readBytesWithTimeout(uint8_t *buf, size_t bufSize) {
 	return client.read(buf, bufSize);
 }
 
-
 // ------------------------
 size_t ESPWebDAV::readBytesWithTimeout(uint8_t *buf, size_t bufSize, size_t numToRead) {
 // ------------------------
@@ -339,5 +304,3 @@ size_t ESPWebDAV::readBytesWithTimeout(uint8_t *buf, size_t bufSize, size_t numT
 
 	return client.read(buf, bufSize);
 }
-
-
