@@ -48,16 +48,7 @@ bool weHaveBus = false;
 void setup() {
   	DBG_INIT(115200);
 	DBG_PRINTLN("\nESPWebDAV setup");
-	
-	// ------------------------
-	// ----- GPIO -------
-	// Detect when other master uses SPI bus
-	pinMode(CS_SENSE, INPUT);
-	attachInterrupt(CS_SENSE, []() {
-		if(!weHaveBus)
-			spiBlockoutTime = millis() + SPI_BLOCKOUT_PERIOD;
-	}, FALLING);
-	
+		
 	EEPROM.begin(EEPROM_SIZE);
 	uint8_t *p = (uint8_t*)(&config);
 	for (uint8 i = 0; i < sizeof(config); i++)
@@ -82,9 +73,6 @@ void setup() {
 	INIT_LED;
 	blink();
 	
-	// wait for other master to assert SPI bus first
-	delay(SPI_BLOCKOUT_PERIOD);
-  
 	// ----- WIFI -------
 	// Set hostname first
 	WiFi.hostname(hostname);
@@ -116,7 +104,20 @@ void setup() {
 	DBG_PRINT("        RSSI: "); DBG_PRINTLN(WiFi.RSSI());
 	DBG_PRINT("        Mode: "); DBG_PRINTLN(WiFi.getPhyMode());
 
+	// Detect when other master uses SPI bus
+	pinMode(CS_SENSE, INPUT);
+	attachInterrupt(CS_SENSE, []() {
+		if(!weHaveBus)
+			spiBlockoutTime = millis() + SPI_BLOCKOUT_PERIOD;
+	}, FALLING);
+
+	// wait for other master to assert SPI bus first
+	delay(SPI_BLOCKOUT_PERIOD);
+  
 	// sleep for an additional 30 seconds
+	// we don't want to be touching the SD card 
+	// if we are connected to a printer and its
+	// bootloader is trying to install a firmware bin
 	delay(30000);
 
 	// ----- SD Card and Server -------
