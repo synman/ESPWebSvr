@@ -126,7 +126,8 @@ void setup() {
 	for (uint8 x = 0 ; x * 1000 < SPI_BLOCKOUT_PERIOD ; x = x + 1) {
 		// wait for other master to assert SPI bus first
 		DBG_PRINT(".");
-		delay(1000);
+		blink();
+		delay(500);
 	}
   
 	// ----- SD Card and Server -------
