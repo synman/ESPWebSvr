@@ -84,7 +84,7 @@ void setup() {
 		WiFi.begin(ssid, pwd);
 		// Wait for connection
 		DBG_PRINT("Connecting to WiFi .");
-		for (uint8 x = 0 ; x < 30 && WiFi.status() != WL_CONNECTED; x++) {
+		for (uint8 x = 0 ; x < 60 && WiFi.status() != WL_CONNECTED; x++) {
 			blink();
 			DBG_PRINT(".");
 		}
@@ -92,8 +92,8 @@ void setup() {
 	
 	if (WiFi.status() != WL_CONNECTED) {
 		wifimode = WIFI_AP;
-		WiFi.softAP("espwebdav");
-		DBG_PRINTLN("SoftAP [espwebdav / 192.168.4.1] started")
+		WiFi.softAP("espwebdav1");
+		DBG_PRINTLN("\nSoftAP [espwebdav1 / 192.168.4.1] started")
 	}
 
 	if (!MDNS.begin(hostname)) { 
@@ -161,8 +161,6 @@ void setup() {
 
 	relenquishBusControl();
 }
-
-
 
 // ------------------------
 void loop() {

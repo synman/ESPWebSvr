@@ -16,6 +16,21 @@ const char *wdays[]  = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
 bool reboot = false;
 
+const char *basehtml =
+	"<html><head><title>ESPWebDav Setup</title></head><body>"
+	"ESPWebDav Setup Form<br><br>"
+	"host: <input id='host' type='text' value='{host}'/><br>"
+	"ssid: <input id='ssid' type='text' value='{ssid}'/><br>"
+	"pass: <input id='pass' type='text' value='{pass}'/><br>"
+	"<br><input type='submit' onclick='save()' value='Save'/>&nbsp;&nbsp;<input type='submit' onclick='reboot()' value='Reboot'/>"
+	"</body>"
+	"<script language='javascript'>"
+	"function save() { window.location.href=location.protocol + '//' + location.host + '/save/' + host.value + '/' + ssid.value + '/' + pass.value; }"
+	"function reboot() { window.location.href=location.protocol + '//' + location.host + '/reboot'; }"
+	"</script>"
+	"</html>";
+
+
 // ------------------------
 bool ESPWebDAV::init(int chipSelectPin, int serverPort) {
 // ------------------------
@@ -31,10 +46,54 @@ bool ESPWebDAV::init(int chipSelectPin, int serverPort) {
 // ------------------------
 void ESPWebDAV::handleNotFound() {
 // ------------------------
+
+	// default document
+	if (method.equals("GET") && uri.equals("/")) {
+		String html = basehtml;
+
+		html.replace("{host}", config.hostname_flag == 9 ? config.hostname : "espwebdav");
+		if (config.ssid_flag == 9) html.replace("{ssid}", config.ssid);
+		if (config.pwd_flag == 9) html.replace("{pass}", config.pwd);
+
+		send("200 OK", "text/html", html);
+		return;
+	}
+
 	// reboot 
 	if (method.equals("GET") && uri.equalsIgnoreCase("/reboot")) {
 		send("200 OK", "text/plain", "processing reboot request. . .");
 		reboot = true;
+		return;
+	}
+
+	// save all 
+	if (method.equals("GET") && uri.startsWith("/save/")) {
+		String pwd = uri.substring(uri.lastIndexOf("/") + 1);
+		memset(config.pwd, '\0', WIFI_PASSWD_LEN);
+		pwd.toCharArray(config.pwd, WIFI_PASSWD_LEN);
+
+		String uri1 = uri.substring(0, uri.lastIndexOf("/"));
+		String ssid = uri1.substring(uri1.lastIndexOf("/") + 1);
+		memset(config.ssid, '\0', WIFI_SSID_LEN);
+		ssid.toCharArray(config.ssid, WIFI_SSID_LEN);
+
+		String uri2 = uri1.substring(0, uri1.lastIndexOf("/"));
+		String host = uri2.substring(uri2.lastIndexOf("/") + 1);
+		memset(config.hostname, '\0', HOSTNAME_LEN);
+		host.toCharArray(config.hostname, HOSTNAME_LEN);
+
+		config.hostname_flag = 9;
+		config.ssid_flag = 9;
+		config.pwd_flag = 9;
+
+		EEPROM.begin(EEPROM_SIZE);
+		uint8_t *p = (uint8_t*)(&config);
+		for (uint8 i = 0; i < sizeof(config); i++) {
+			EEPROM.write(i, *(p + i));
+		}
+		EEPROM.commit();    
+
+		send("200 OK", "text/plain", "all settings saved");
 		return;
 	}
 
@@ -105,8 +164,6 @@ void ESPWebDAV::handleNotFound() {
 	DBG_PRINTLN("404 Not Found");
 }
 
-
-
 // ------------------------
 void ESPWebDAV::handleReject(String rejectMessage)	{
 // ------------------------
@@ -136,9 +193,6 @@ void ESPWebDAV::handleReject(String rejectMessage)	{
 		// if reached here, means its a 404
 		handleNotFound();
 }
-
-
-
 
 // set http_proxy=http://localhost:36036
 // curl -v -X PROPFIND -H "Depth: 1" http://Rigidbot/Old/PipeClip.gcode
@@ -201,8 +255,6 @@ void ESPWebDAV::handleRequest(String blank)	{
   blink();
 }
 
-
-
 // ------------------------
 void ESPWebDAV::handleOptions(ResourceType resource)	{
 // ------------------------
@@ -210,8 +262,6 @@ void ESPWebDAV::handleOptions(ResourceType resource)	{
 	sendHeader("Allow", "PROPFIND,GET,DELETE,PUT,COPY,MOVE");
 	send("200 OK", NULL, "");
 }
-
-
 
 // ------------------------
 void ESPWebDAV::handleLock(ResourceType resource)	{
@@ -247,8 +297,6 @@ void ESPWebDAV::handleLock(ResourceType resource)	{
 	send("200 OK", "application/xml;charset=utf-8", resp1 + uri + resp2 + lockUser + resp3);
 }
 
-
-
 // ------------------------
 void ESPWebDAV::handleUnlock(ResourceType resource)	{
 // ------------------------
@@ -258,16 +306,12 @@ void ESPWebDAV::handleUnlock(ResourceType resource)	{
 	send("204 No Content", NULL, "");
 }
 
-
-
 // ------------------------
 void ESPWebDAV::handlePropPatch(ResourceType resource)	{
 // ------------------------
 	DBG_PRINTLN("PROPPATCH forwarding to PROPFIND");
 	handleProp(resource);
 }
-
-
 
 // ------------------------
 void ESPWebDAV::handleProp(ResourceType resource)	{
@@ -314,8 +358,6 @@ void ESPWebDAV::handleProp(ResourceType resource)	{
 	baseFile.close();
 	sendContent(F("</D:multistatus>"));
 }
-
-
 
 // ------------------------
 void ESPWebDAV::sendPropResponse(boolean recursing, File32 *curFile)	{
@@ -380,9 +422,6 @@ void ESPWebDAV::sendPropResponse(boolean recursing, File32 *curFile)	{
 	sendContent(F("</D:prop></D:propstat></D:response>"));
 }
 
-
-
-
 // ------------------------
 void ESPWebDAV::handleGet(ResourceType resource, bool isGet)	{
 // ------------------------
@@ -421,9 +460,6 @@ void ESPWebDAV::handleGet(ResourceType resource, bool isGet)	{
 	rFile.close();
 	DBG_PRINT("File "); DBG_PRINT(fileSize); DBG_PRINT(" bytes sent in: "); DBG_PRINT((millis() - tStart)/1000); DBG_PRINTLN(" sec");
 }
-
-
-
 
 // ------------------------
 void ESPWebDAV::handlePut(ResourceType resource)	{
@@ -513,9 +549,6 @@ void ESPWebDAV::handlePut(ResourceType resource)	{
 	nFile.close();
 }
 
-
-
-
 // ------------------------
 void ESPWebDAV::handleWriteError(String message, File32 *wFile)	{
 // ------------------------
@@ -527,7 +560,6 @@ void ESPWebDAV::handleWriteError(String message, File32 *wFile)	{
 	send("500 Internal Server Error", "text/plain", message);
 	DBG_PRINTLN(message);
 }
-
 
 // ------------------------
 void ESPWebDAV::handleDirectoryCreate(ResourceType resource)	{
@@ -550,8 +582,6 @@ void ESPWebDAV::handleDirectoryCreate(ResourceType resource)	{
 	sendHeader("Allow", "OPTIONS,MKCOL,LOCK,POST,PUT");
 	send("201 Created", NULL, "");
 }
-
-
 
 // ------------------------
 void ESPWebDAV::handleMove(ResourceType resource)	{
@@ -581,9 +611,6 @@ void ESPWebDAV::handleMove(ResourceType resource)	{
 	sendHeader("Allow", "OPTIONS,MKCOL,LOCK,POST,PUT");
 	send("201 Created", NULL, "");
 }
-
-
-
 
 // ------------------------
 void ESPWebDAV::handleDelete(ResourceType resource)	{
