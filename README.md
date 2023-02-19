@@ -31,8 +31,7 @@ GPIO5|CS Sense
 
 The card should be formatted for Fat16 or Fat32
 
-Compile and upload the program to an ESP8266 module. ESP12-E was used for development and testing.  This project is fully compatible with PlatformIO.  
-Additionally, OTA is fully supported for subsequent flashes of the sketch over Wi-Fi.
+Compile and upload the program to an ESP8266 module. ESP12-E was used for development and testing.  This project is fully compatible with PlatformIO. Additionally, OTA is fully supported for subsequent flashes of the sketch over Wi-Fi.
 
 Be sure to reset your adapter using its reset button after uploading a new firmware over USB.  The ESP8266 series modules will not properly reset / reboot
 after a USB flash if not reset via their reset button first.  This limitation does not apply to OTA updates.
