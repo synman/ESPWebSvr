@@ -34,8 +34,9 @@ uint32 sys_time = system_get_time();
 CONFIG_TYPE config;
 
 const char *hostname 	= "espwebdav";
-const char *ssid 		= "xxxx";
-const char *pwd 		= "xxxx";
+const char *ssid 		= "";
+const char *pwd 		= "";
+WiFiMode_t wifimode     = WIFI_AP;
 
 ESPWebDAV dav;
 String statusMessage;
@@ -48,7 +49,7 @@ bool weHaveBus = false;
 void setup() {
   	DBG_INIT(115200);
 	DBG_PRINTLN("\nESPWebDAV setup");
-		
+	
 	EEPROM.begin(EEPROM_SIZE);
 	uint8_t *p = (uint8_t*)(&config);
 	for (uint8 i = 0; i < sizeof(config); i++)
@@ -64,6 +65,7 @@ void setup() {
 	if (config.ssid_flag == 9) {
 		DBG_PRINT("config ssid="); DBG_PRINTLN(config.ssid);
 		ssid = config.ssid;
+		wifimode = WIFI_STA;
 	} 
 	if (config.pwd_flag == 9) {
 		DBG_PRINT("config pwd="); DBG_PRINTLN(config.pwd);
@@ -73,20 +75,25 @@ void setup() {
 	INIT_LED;
 	blink();
 	
-	// ----- WIFI -------
-	// Set hostname first
 	WiFi.hostname(hostname);
-	// Reduce startup surge current
+	WiFi.mode(wifimode);
 	WiFi.setAutoConnect(false);
-	WiFi.mode(WIFI_STA);
 	WiFi.setPhyMode(WIFI_PHY_MODE_11N);
-	WiFi.begin(ssid, pwd);
 
-	// Wait for connection
-	DBG_PRINT("Connecting to WiFi .");
-	while(WiFi.status() != WL_CONNECTED) {
-		blink();
-		DBG_PRINT(".");
+	if (wifimode != WIFI_AP) {
+		WiFi.begin(ssid, pwd);
+		// Wait for connection
+		DBG_PRINT("Connecting to WiFi .");
+		for (uint8 x = 0 ; x < 30 && WiFi.status() != WL_CONNECTED; x++) {
+			blink();
+			DBG_PRINT(".");
+		}
+	}
+	
+	if (WiFi.status() != WL_CONNECTED) {
+		wifimode = WIFI_AP;
+		WiFi.softAP("espwebdav");
+		DBG_PRINTLN("SoftAP [espwebdav / 192.168.4.1] started")
 	}
 
 	if (!MDNS.begin(hostname)) { 
