@@ -31,10 +31,27 @@ GPIO5|CS Sense
 
 The card should be formatted for Fat16 or Fat32
 
-Compile and upload the program to an ESP8266 module. ESP12-E was used for development and testing.  This project is fully compatible with PlatformIO. Additionally, OTA is fully supported for subsequent flashes of the sketch over Wi-Fi.
+Compile and upload the program to an ESP8266 module. 
+```
+Detecting chip type... ESP8266
+Chip is ESP8285H16
+Features: WiFi, Embedded Flash
+Crystal is 26MHz
+MAC: 4c:eb:d6:db:2b:31
+Uploading stub...
+Running stub...
+Stub running...
+Manufacturer: a1
+Device: 4015
+Detected flash size: 2MB
+```
+
+This project is fully compatible with PlatformIO. Additionally, OTA is fully supported for subsequent flashes of the sketch over Wi-Fi.
 
 Be sure to reset your adapter using its reset button after uploading a new firmware over USB.  The ESP8266 series modules will not properly reset / reboot
 after a USB flash if not reset via their reset button first.  This limitation does not apply to OTA updates.
+
+There is plenty of extra flash storage on this module and work is underway to split the rom with a 1mb spiifs partition (too many conflicts with sdFat at the moment but the spiffs FS is there if you `pio run -t uploadFs`)
 
 ## Initial Setup
 After uploading the sketch to your WiFi-SD board, reset the adapter and wait approximately 60 seconds.  You can monitor its progress via the 
