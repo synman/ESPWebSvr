@@ -43,7 +43,7 @@ PlatformIO Serial Monitor.  Once it indicates the WebDav server is running, conn
 
 Open up a browser and visit http://192.168.4.1
 
--- insert image --
+<img width="201" alt="Screenshot 2023-02-19 at 11 56 41 AM" src="https://user-images.githubusercontent.com/1299716/219963213-3390b434-43d0-4752-9688-e7708b868d0a.png">
 
 Fill in the hostname, ssid, and password fields with values that meet your needs and click the `Save` button.  Press the back button in your 
 browser, refresh the page, and verify the values you entered meet your requirements.  Click the `Reboot` button to activate the changes.
