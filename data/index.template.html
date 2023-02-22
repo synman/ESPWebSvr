@@ -1,0 +1,17 @@
+<html>
+    <head>
+        <title>ESPWebDav Setup</title>
+    </head>
+    <body>
+        ESPWebDav Setup Form<br><br>
+        host: <input id='host' type='text' value='{host}'/><br>
+        ssid: <input id='ssid' type='text' value='{ssid}'/><br>
+        pass: <input id='pass' type='text' value='{pass}'/><br>
+        <br><input type='submit' onclick='save()' value='Save'/>&nbsp;&nbsp;<input type='submit' onclick='reboot()' value='Reboot'/>
+    </body>
+
+	<script language='javascript'>
+        function save() { window.location.href=location.protocol + '//' + location.host + '/save/' + host.value + '/' + ssid.value + '/' + pass.value; }
+        function reboot() { window.location.href=location.protocol + '//' + location.host + '/reboot'; }
+	</script>
+</html>
