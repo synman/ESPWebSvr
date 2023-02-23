@@ -1,11 +1,11 @@
-// Using the WebDAV server with Rigidbot 3D printer.
-// Printer controller is a variation of Rambo running Marlin firmware
+// Full blown HTTP server implementation for Wifi-SD card
 
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include "LittleFS.h"
 
 #include <ESP8266WiFi.h>
+#include <DNSServer.h> 
 #include <WiFiUdp.h>
 #include <EEPROM.h>
 #include <user_interface.h>
@@ -14,12 +14,10 @@
 
 // #include <Ticker.h>
 
-#include "ESPWebDAV.h"
+#include "WebServer.h"
 
 // LED is connected to GPIO2 on this board
 #define INIT_LED			{pinMode(2, OUTPUT);}
-
-#define SERVER_PORT		80
 
 uint32 sys_time = system_get_time();
 CONFIG_TYPE config;
@@ -29,7 +27,10 @@ const char *ssid 		= "";
 const char *pwd 		= "";
 WiFiMode_t wifimode     = WIFI_AP;
 
-ESPWebDAV dav;
+DNSServer dnsServer;
+const byte DNS_PORT = 53;
+
+WebServer webserver;
 bool initFailed = false;
 char buf[255];
 
@@ -70,10 +71,6 @@ void setup() {
 
 	SER.println("\nESPWebDAV setup\n");
 	
-	if(!LittleFS.begin()){
-		SER.println("An Error has occurred while mounting LittleFS");
-	}
-
 	EEPROM.begin(EEPROM_SIZE);
 	uint8_t *p = (uint8_t*)(&config);
 	for (uint8 i = 0; i < sizeof(config); i++)
@@ -122,7 +119,9 @@ void setup() {
 	
 	if (WiFi.status() != WL_CONNECTED) {
 		wifimode = WIFI_AP;
+		WiFi.mode(wifimode);
 		WiFi.softAP("espwebdav1");
+		dnsServer.start(DNS_PORT, "*", WiFi.localIP());
 		SER.println("\n\nSoftAP [espwebdav1] started");
 	}
 
@@ -133,22 +132,26 @@ void setup() {
 	SER.print("        RSSI: "); SER.println(WiFi.RSSI());
 	SER.print("        Mode: "); SER.println(WiFi.getPhyMode());
 	
-	// create new index based on active config
-	File _template = LittleFS.open("/index.template.html", "r");
-	String html = _template.readString();
-	_template.close();
+	if(!LittleFS.begin()){
+		SER.println("An Error has occurred while mounting LittleFS");
+	} else {
+		// create new index based on active config
+		File _template = LittleFS.open("/index.template.html", "r");
+		String html = _template.readString();
+		_template.close();
 
-	html.replace("{host}", hostname);
-	html.replace("{ssid}", ssid);
-	html.replace("{pass}", pwd);
+		html.replace("{host}", hostname);
+		html.replace("{ssid}", ssid);
+		html.replace("{pass}", pwd);
 
-	if (LittleFS.exists("/index.html")) LittleFS.remove("/index.html");
-	File _index = LittleFS.open("/index.html", "w");
-	_index.write(html.c_str());
-	_index.close();
+		if (LittleFS.exists("/index.html")) LittleFS.remove("/index.html");
+		File _index = LittleFS.open("/index.html", "w");
+		_index.write(html.c_str());
+		_index.close();
+	}
 
 	// start the web server
-	if(!dav.init(SERVER_PORT)) {
+	if(!webserver.init()) {
 		SER.println("\nERROR: failed to start web server");
 		// indicate error on LED
 		errorBlink();
@@ -222,12 +225,15 @@ void loop() {
 		SER.flush();
 	}
 
+	if (wifimode == WIFI_AP) {
+		dnsServer.processNextRequest();
+	}
+
+	// check for OTA
 	ArduinoOTA.handle();
 
 	// if a request is pending, process it
-	if(dav.isClientWaiting())	{
-		dav.handleClient();
-	}
+	webserver.handleClient();
 }
 
 // ------------------------

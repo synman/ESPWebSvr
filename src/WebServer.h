@@ -1,4 +1,5 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
 #include <TelnetSpy.h>
 
 #define LED_ON				{digitalWrite(2, LOW);}
@@ -22,6 +23,8 @@ typedef struct config_type {
   char pwd[WIFI_PASSWD_LEN];
 } CONFIG_TYPE;
 
+enum FileSystem { LFS, SDCARD };
+
 // constants for WebServer
 #define CONTENT_LENGTH_UNKNOWN ((size_t) -1)
 #define CONTENT_LENGTH_NOT_SET ((size_t) -2)
@@ -39,45 +42,26 @@ extern TelnetSpy SerialAndTelnet;
   void relenquishBusControl();
 #endif
 
-class ESPWebDAV	{
+class WebServer	{
 public:
-	bool init(int serverPort);
-	bool isClientWaiting();
+	bool init();
 	void handleClient(String blank = "");
 	
 protected:
-	typedef void (ESPWebDAV::*THandlerFunction)(String);
+	// typedef void (WebServer::*THandlerFunction)(String);
 	
-	void processClient(THandlerFunction handler, String message);
 	void handleRequest(String blank);
+	void handleFileUpload(FileSystem fs);
 
 	// Sections are copied from ESP8266Webserver
 	String getMimeType(String path);
 	String urlDecode(const String& text);
 	String urlToUri(String url);
-	bool parseRequest();
-	void sendHeader(const String& name, const String& value, bool first = false);
-	void send(String code, const char* content_type, const String& content);
-	void _prepareHeader(String& response, String code, const char* content_type, size_t contentLength);
-	void sendContent(const String& content);
-	void sendContent_P(PGM_P content);
-	void setContentLength(size_t len);
-	size_t readBytesWithTimeout(uint8_t *buf, size_t bufSize);
-	size_t readBytesWithTimeout(uint8_t *buf, size_t bufSize, size_t numToRead);
 
 	// variables pertaining to current most HTTP request being serviced
-	WiFiServer *server;
-	WiFiClient 	client;
-	String 		method;
+	WiFiClient 	client;   // we should avoid using this
+	HTTPMethod 	method;
 	String 		uri;
-	String 		contentLengthHeader;
-	String 		depthHeader;
-	String 		hostHeader;
-	String		destinationHeader;
-
-	String 		_responseHeaders;
-	bool		_chunked;
-	int			_contentLength;
 };
 
 

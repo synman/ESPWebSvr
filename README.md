@@ -1,7 +1,10 @@
 # WebDAV Server and a 3D Printer
-This project based on the work here:  https://github.com/ardyesp/ESPWebDAV
+This project was originally based on the work here:  https://github.com/ardyesp/ESPWebDAV
 
-WiFi WebDAV server using ESP8266 SoC. It maintains the filesystem on an SD card.
+~~WiFi WebDAV server using ESP8266 SoC. It maintains the filesystem on an SD card.~~
+
+So much of what is mentioned below is no longer valid in this distribution.   It is safe to call it a self standing project,
+not bound by any prior upstreams / code, as it has reached a point of divergence where I feel comfortable declaring it unique.
 
 Supports the basic WebDav operations - *PROPFIND*, *GET*, *PUT*, *DELETE*, *MKCOL*, *MOVE* etc.
 
@@ -12,7 +15,7 @@ I am using this setup as a networked drive for 3D Printer running Marlin. Follow
 
 GCode can be directly uploaded from the slicer (Cura) to this remote drive, thereby simplifying the workflow. 
 
-![Printer Hookup Diagram](src/PrinterHookup2.jpg)
+![Printer Hookup Diagram](./PrinterHookup2.jpg)
 
 ## Dependencies:
 1. [ESP8266 Arduino Core version 2.4](https://github.com/esp8266/Arduino)

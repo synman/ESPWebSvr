@@ -1,13 +1,69 @@
 <html>
     <head>
-        <title>ESPWebDav Setup</title>
+        <title>ESPWebDav Administration</title>
     </head>
     <body>
-        ESPWebDav Setup Form<br><br>
-        host: <input id='host' type='text' value='{host}'/><br>
-        ssid: <input id='ssid' type='text' value='{ssid}'/><br>
-        pass: <input id='pass' type='text' value='{pass}'/><br>
-        <br><input type='submit' onclick='save()' value='Save'/>&nbsp;&nbsp;<input type='submit' onclick='reboot()' value='Reboot'/>
+        <table>
+            <tr height="50px">
+                <td colspan="2" align="center">
+                    <b>ESPWebDav Setup Form</b>
+                </td>
+            </tr>
+            <tr>
+                <td>Hostname:</td>
+                <td><input id='host' type='text' value='{host}'/></td>
+            </tr>
+            <tr>
+                <td>SSID:</td>
+                <td><input id='ssid' type='text' value='{ssid}'/></td>
+            </tr>
+            <tr>
+                <td>Passcode:</td>
+                <td><input id='pass' type='text' value='{pass}'/></td>
+            </tr>
+            <tr height="50px">
+                <td><input type='submit' onclick='save()' value='Save'/></td>
+                <td><input type='submit' onclick='reboot()' value='Reboot'/></td>
+            </tr>
+        </table>
+        <br> 
+        <hr>
+        <br>
+        <table>
+            <tr height="50px">
+                <td align="center">
+                    <b>ESPWebDav File Upload Form</b>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <b>Upload to SD Card</b><br>
+                    <br>
+                    <form method="post" enctype="multipart/form-data" action="/uploadsd">
+                        Destination Directory<br>
+                        <input type="text" value="/" name="path"/><br><br>
+                        <input type="file" name="name">
+                        <input class="button" type="submit" value="Upload">
+                    </form>            
+                </td>
+            </tr>
+            <tr><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td></tr>
+            <tr>
+                <td>
+                    <b>Upload to LittleFS Partition</b><br><br>
+                    <form method="post" enctype="multipart/form-data" action="/uploadfs">
+                        <input type="file" name="name">
+                        <input class="button" type="submit" value="Upload">
+                    </form>            
+                </td>
+            </tr>
+        </table>
+        <br> 
+        <hr>
+        <br>
+        <a href="/sd">Show SD Card Files</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="/fs">Show LittleFS Files</a>
+
     </body>
 
 	<script language='javascript'>
