@@ -6,6 +6,8 @@ This project was originally based on the work here:  https://github.com/ardyesp/
 So much of what is mentioned below is no longer valid in this distribution.   It is safe to call it a self standing project,
 not bound by any prior upstreams / code, as it has reached a point of divergence where I feel comfortable declaring it unique.
 
+**This document is grossly out of date at this point**
+
 Supports the basic WebDav operations - *PROPFIND*, *GET*, *PUT*, *DELETE*, *MKCOL*, *MOVE* etc.
 
 Once the WebDAV server is running on the ESP8266, a WebDAV client like Windows can access the filesystem on the SD card just like a cloud drive. The drive can also be mounted like a networked drive, and allows copying/pasting/deleting files on SD card remotely.
