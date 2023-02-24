@@ -1,4 +1,3 @@
-#include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <TelnetSpy.h>
 
@@ -36,6 +35,7 @@ extern TelnetSpy SerialAndTelnet;
 
 #ifndef FUNCTIONS_H_INCLUDED
   #define FUNCTIONS_H_INCLUDED
+  void updateIndexTemplate(const char* hostname, const char* ssid, const char* pwd);
   void blink();
   void errorBlink();
   boolean takeBusControl();
@@ -44,12 +44,10 @@ extern TelnetSpy SerialAndTelnet;
 
 class WebServer	{
 public:
-	bool init();
+	void init();
 	void handleClient(String blank = "");
 	
 protected:
-	// typedef void (WebServer::*THandlerFunction)(String);
-	
 	void handleRequest(String blank);
 	void handleFileUpload(FileSystem fs);
 
@@ -63,9 +61,3 @@ protected:
 	HTTPMethod 	method;
 	String 		uri;
 };
-
-
-
-
-
-

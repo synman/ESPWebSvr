@@ -4,15 +4,8 @@
 #include <ArduinoOTA.h>
 #include "LittleFS.h"
 
-#include <ESP8266WiFi.h>
 #include <DNSServer.h> 
-#include <WiFiUdp.h>
 #include <EEPROM.h>
-#include <user_interface.h>
-
-#include <TelnetSpy.h>
-
-// #include <Ticker.h>
 
 #include "WebServer.h"
 
@@ -22,7 +15,7 @@
 uint32 sys_time = system_get_time();
 CONFIG_TYPE config;
 
-const char *hostname 	= "espwebdav";
+const char *hostname 	= "espwebsvr";
 const char *ssid 		= "";
 const char *pwd 		= "";
 WiFiMode_t wifimode     = WIFI_AP;
@@ -31,15 +24,7 @@ DNSServer dnsServer;
 const byte DNS_PORT = 53;
 
 WebServer webserver;
-bool initFailed = false;
 char buf[255];
-
-// Ticker ota;
-
-// void handleOTA() {
-// 	SER.println("handleOTA");
-// 	ArduinoOTA.handle();
-// }
 
 TelnetSpy SerialAndTelnet;
 
@@ -62,14 +47,14 @@ void waitForDisconnection() {
 // ------------------------
 void setup() {
   	// Serial.begin(115200);
-	SerialAndTelnet.setWelcomeMsg(F("espwebdav diagnostics\r\n\n"));
+	SerialAndTelnet.setWelcomeMsg(F("espwebsvr diagnostics\r\n\n"));
 	SER.begin(115200);
 	delay(100); // Wait for serial port
 
 	// disable sleep
 	wifi_fpm_set_sleep_type(NONE_SLEEP_T);
 
-	SER.println("\nESPWebDAV setup\n");
+	SER.println("\nESPWebSvr setup\n");
 	
 	EEPROM.begin(EEPROM_SIZE);
 	uint8_t *p = (uint8_t*)(&config);
@@ -78,6 +63,7 @@ void setup() {
 		*(p + i) = EEPROM.read(i);
 	}
 	EEPROM.commit();
+	EEPROM.end();
 
 	if (config.hostname_flag == 9) {
 		sprintf(buf, "config host: %s", config.hostname);
@@ -120,9 +106,9 @@ void setup() {
 	if (WiFi.status() != WL_CONNECTED) {
 		wifimode = WIFI_AP;
 		WiFi.mode(wifimode);
-		WiFi.softAP("espwebdav1");
-		dnsServer.start(DNS_PORT, "*", WiFi.localIP());
-		SER.println("\n\nSoftAP [espwebdav1] started");
+		WiFi.softAP("espwebsvr");
+		dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+		SER.println("\n\nSoftAP [espwebsvr] started");
 	}
 
 	SER.println("\n");
@@ -135,31 +121,13 @@ void setup() {
 	if(!LittleFS.begin()){
 		SER.println("An Error has occurred while mounting LittleFS");
 	} else {
-		// create new index based on active config
-		File _template = LittleFS.open("/index.template.html", "r");
-		String html = _template.readString();
-		_template.close();
-
-		html.replace("{host}", hostname);
-		html.replace("{ssid}", ssid);
-		html.replace("{pass}", pwd);
-
-		if (LittleFS.exists("/index.html")) LittleFS.remove("/index.html");
-		File _index = LittleFS.open("/index.html", "w");
-		_index.write(html.c_str());
-		_index.close();
+		updateIndexTemplate(hostname, ssid, pwd);
 	}
 
 	// start the web server
-	if(!webserver.init()) {
-		SER.println("\nERROR: failed to start web server");
-		// indicate error on LED
-		errorBlink();
-		initFailed = true;
-	} else {
-		blink();
-		SER.println("\nWeb server started");
-  	}
+	webserver.init();
+	blink();
+	SER.println("\nWeb server started");
 
 	// enable mDNS via espota
 	ArduinoOTA.setHostname(hostname);
@@ -175,8 +143,7 @@ void loop() {
 		reboot = true;    
 	}
 
-	if (reboot || initFailed) {
-		initFailed = false;
+	if (reboot) {
 		reboot = false;
 		SER.println("REBOOTING");
 		errorBlink();
@@ -234,6 +201,28 @@ void loop() {
 
 	// if a request is pending, process it
 	webserver.handleClient();
+}
+
+void updateIndexTemplate(const char* hostname, const char* ssid, const char* pwd) {
+	// create new index based on active config
+	File _template = LittleFS.open("/index.template.html", "r");
+
+	if (_template) {
+		String html = _template.readString();
+		_template.close();
+
+		while (html.indexOf("{host}", 0) != -1) {
+			html.replace("{host}", hostname);
+		}
+
+		html.replace("{ssid}", ssid);
+		html.replace("{pass}", pwd);
+
+		if (LittleFS.exists("/index.html")) LittleFS.remove("/index.html");
+		File _index = LittleFS.open("/index.html", "w");
+		_index.write(html.c_str());
+		_index.close();
+	}
 }
 
 // ------------------------

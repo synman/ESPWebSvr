@@ -1,12 +1,7 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <ArduinoOTA.h>
-#include <TelnetSpy.h>
 #include "LittleFS.h"
-
 #include <EEPROM.h>
-#include <SPI.h>
 #include <SD.h>
+
 #include "WebServer.h"
 
 #define SERVER_PORT		80
@@ -27,72 +22,33 @@ volatile unsigned long spiBlockoutTime = 0;
 void IRAM_ATTR ISRoutine ();
 
 ESP8266WebServer server(SERVER_PORT);
-String printDirectory(File dir, int numTabs);
+String printDirectory(FileSystem fs, File dir, int numTabs);
 
 // ------------------------
-bool WebServer::init() {
+void WebServer::init() {
 // ------------------------
 	// attach to the SD card sense pin (we don't do anything with it though)
 	pinMode(CS_SENSE, INPUT);
 	attachInterrupt(CS_SENSE, ISRoutine, FALLING);
 
- 	server.on("/uploadfs", HTTP_POST, []() { server.send(200); }, [this]() {handleFileUpload(LFS); });
- 	server.on("/uploadsd", HTTP_POST, []() { server.send(200); }, [this]() {handleFileUpload(SDCARD); });
+	// logging hook
+	server.addHook([this](const String& method, const String& url, WiFiClient* client, ESP8266WebServer::ContentTypeFunction contentType) {
+		sprintf(buffer, "%.4f %s %s %s %s %d", (float) millis() / 1000, method.c_str(), url.c_str(), getMimeType(url).c_str(), client->remoteIP().toString().c_str(), client->getKeepAliveCount());
+		SER.println(buffer);
+		return ESP8266WebServer::CLIENT_REQUEST_CAN_CONTINUE;
+	});
+
 	server.serveStatic("/", LittleFS, "/index.html");
 	server.serveStatic("/index.html", LittleFS, "/index.html");
+	server.serveStatic("/favicon.ico", LittleFS, "/favicon.ico");
+
+ 	server.on("/uploadfs", HTTP_POST, []() { server.send(200); }, [this]() {handleFileUpload(LFS); });
+ 	server.on("/uploadsd", HTTP_POST, []() { server.send(200); }, [this]() {handleFileUpload(SDCARD); });
+
 	server.onNotFound([this]() { handleRequest(""); });
 	server.begin();
 
-	return true;
-}
-
-void WebServer::handleFileUpload(FileSystem fs) { 
-	HTTPUpload& upload = server.upload();
-
-	if (upload.status == UPLOAD_FILE_START) {
-		String path = server.arg("path");
-		if (!path.endsWith("/")) path = path + "/";
-
-		if (fs == SDCARD) takeBusControl();
-		if (fs == SDCARD ? !SD.exists(path) : !LittleFS.exists(path)) {
-			sprintf(buffer, "creating directory [%s]", path.c_str());
-			SER.println(buffer);
-			if (fs == SDCARD) 
-				SD.mkdir(path);
-			else
-				LittleFS.mkdir(path);
-		}
-		if (fs == SDCARD)
-			uploadFile = SD.open(path + upload.filename, "w"); 
-		else 
-			uploadFile = LittleFS.open(path + upload.filename, "w"); 
-
-		sprintf(buffer, "uploading [%s] to [%s] . . .", upload.filename.c_str(), fs == SDCARD ? "SD" : "LittleFS");
-		SER.println(buffer);
-		return;
-	}
-
-	if (upload.status == UPLOAD_FILE_WRITE && uploadFile) {
-		uploadFile.write(upload.buf, upload.currentSize);
-	}
-
-	if (upload.status == UPLOAD_FILE_END) {
-		if(uploadFile) {           
-			uploadFile.close();    
-			server.sendHeader("Location","/index.html?upload_complete");
-			server.send(303);
-			sprintf(buffer, "completed [%s]", upload.filename.c_str());
-			SER.println(buffer);
-		} else {
-			sprintf(buffer, "upload failed for [%s]", upload.filename.c_str());
-			SER.println(buffer);
-			server.sendHeader("Location","/index.html?upload_failed");
-			server.send(303);
-			// server.send(500, "text/plain", "500: could not create file");
-
-		}
-		if (fs == SDCARD) relenquishBusControl();
- 	}
+	return;
 }
 
 void ISRoutine() {
@@ -186,9 +142,6 @@ void WebServer::handleRequest(String blank)	{
 	method = server.method();
 	client = server.client();
 
-	sprintf(buffer, "handleRequest for [%s] method [%d]", uri.c_str(), method);
-	SER.println(buffer);
-
 	// default document
 	if (method == HTTP_GET && uri.equals("/")) {
 		String index = "/index.html";
@@ -200,7 +153,6 @@ void WebServer::handleRequest(String blank)	{
 
 	// reboot 
 	if (method == HTTP_GET  && uri.equalsIgnoreCase("/reboot")) {
-		// server.send(200, "text/plain", "processing reboot request. . .");
 		server.sendHeader("Location","/index.html?reboot");
 		server.send(303);
 		reboot = true;
@@ -233,83 +185,30 @@ void WebServer::handleRequest(String blank)	{
 			EEPROM.write(i, *(p + i));
 		}
 		EEPROM.commit();    
+		EEPROM.end();
 
-		// send("200 OK", "text/plain", "all settings saved");
-		server.sendHeader("Location","/index.html?saved");
+		updateIndexTemplate(config.hostname, config.ssid, config.pwd);
+
+		server.sendHeader("Location", "/index.html?saved");
 		server.send(303);
 
+		SER.println("config saved");
 		return;
 	}
 
-	// save hostname 
-	if (method == HTTP_GET  && uri.startsWith("/hostname/")) {
-		String hostname = uri.substring(uri.lastIndexOf("/") + 1);
-		memset(config.hostname, '\0', HOSTNAME_LEN);
-		hostname.toCharArray(config.hostname, HOSTNAME_LEN);
-		config.hostname_flag = 9;
-
-		EEPROM.begin(EEPROM_SIZE);
-		uint8_t *p = (uint8_t*)(&config);
-		for (uint8 i = 0; i < sizeof(config); i++) {
-		EEPROM.write(i, *(p + i));
-		}
-		EEPROM.commit();    
-
-		server.send(200, "text/plain", "hostname saved");
-		return;
-	}
-
-	// save ssid 
-	if (method == HTTP_GET  && uri.startsWith("/ssid/")) {
-		String ssid = uri.substring(uri.lastIndexOf("/") + 1);
-		memset(config.ssid, '\0', WIFI_SSID_LEN);
-		ssid.toCharArray(config.ssid, WIFI_SSID_LEN);
-		config.ssid_flag = 9;
-
-		EEPROM.begin(EEPROM_SIZE);
-		uint8_t *p = (uint8_t*)(&config);
-		for (uint8 i = 0; i < sizeof(config); i++) {
-		EEPROM.write(i, *(p + i));
-		}
-		EEPROM.commit();    
-
-		server.send(200, "text/plain", "ssid saved");
-		return;
-	}
-
-	// save pwd 
-	if (method == HTTP_GET  && uri.startsWith("/password/")) {
-		String pwd = uri.substring(uri.lastIndexOf("/") + 1);
-		memset(config.pwd, '\0', WIFI_PASSWD_LEN);
-		config.pwd_flag = 9;
-		pwd.toCharArray(config.pwd, WIFI_PASSWD_LEN);
-
-		EEPROM.begin(EEPROM_SIZE);
-		uint8_t *p = (uint8_t*)(&config);
-		for (uint8 i = 0; i < sizeof(config); i++) {
-		EEPROM.write(i, *(p + i));
-		}
-		EEPROM.commit();    
-
-		server.send(200, "text/plain", "network password saved");
-		return;
-	}
-
+	// littlefs directory listing
 	if (method == HTTP_GET  && (uri.equals("/fs") || uri.equals("/fs/"))) {
-		String str = printDirectory(LittleFS.open("/", "r"), 0);
-		server.send(200, "text/plain", str);
-		sprintf(buffer, "%s %d bytes", "littlefs dir", str.length());
-		SER.println(buffer);
+		String str = printDirectory(FileSystem::LFS, LittleFS.open("/", "r"), 0);
+		server.send(200, "text/html", str);
 		return;
 	}
 
+	// SD card directory listing
 	if (method == HTTP_GET  && (uri.equals("/sd") || uri.equals("/sd/"))) {
 		if (takeBusControl()) {
-			String str = printDirectory(SD.open("/", "r"), 0);
+			String str = printDirectory(FileSystem::SDCARD, SD.open("/", "r"), 0);
 			relenquishBusControl();
-			server.send(200, "text/plain", str);
-			sprintf(buffer, "%s %d bytes", "sd dir", str.length());
-			SER.println(buffer);
+			server.send(200, "text/html", str);
 		} else {
 			server.send(404, "text/plain", "SD CARD NOT READY");
 			SER.println("SD CARD NOT READY");
@@ -317,6 +216,7 @@ void WebServer::handleRequest(String blank)	{
 		return;
 	}
 
+	// download file
 	if (uri.startsWith("/sd") || uri.startsWith("/fs")) {
 		String path = uri;
 		if (uri.startsWith("/sd")) {
@@ -324,9 +224,6 @@ void WebServer::handleRequest(String blank)	{
 			if (takeBusControl()) {
 				File file = SD.open(path, FILE_READ);
 				if (file) {
-					char buf[255];
-					sprintf(buf, "%s %d bytes", file.name(), file.size());
-					SER.println(buf);
 					server.streamFile(file, getMimeType(path));
 					file.close();
 					relenquishBusControl();
@@ -341,9 +238,6 @@ void WebServer::handleRequest(String blank)	{
 			path.replace("/fs/", "/");
 			File file = LittleFS.open(path, "r");
 			if (file) {
-				char buf[255];
-				sprintf(buf, "%s %d bytes", file.name(), file.size());
-				SER.println(buf);
 				server.streamFile(file, getMimeType(path));
 				file.close();
 				return;
@@ -351,6 +245,43 @@ void WebServer::handleRequest(String blank)	{
 		}
 	}
 
+	// delete file
+	if (uri.startsWith("/DELETESD/") || uri.startsWith("/DELETEFS/")) {
+		String path = uri;
+		boolean res = false;
+
+		if (uri.startsWith("/DELETESD/")) {
+			path.replace("/DELETESD/", "/");
+			takeBusControl();
+			File file = SD.open(path, "r");	
+			if (file.isDirectory()) {
+				file.close();
+				res = SD.rmdir(path);
+			} else {
+				file.close();
+				res = SD.remove(path);
+			}
+			String str = printDirectory(FileSystem::SDCARD, SD.open("/", "r"), 0);
+			relenquishBusControl();
+			server.send(200, "text/html", str);
+		} else {
+			path.replace("/DELETEFS/", "/");
+			File file = LittleFS.open(path, "r");
+			if (file.isDirectory()) {
+				file.close();
+				res = LittleFS.rmdir(path);
+			} else {
+				file.close();
+				res = LittleFS.remove(path);
+			}
+			String str = printDirectory(FileSystem::LFS, LittleFS.open("/", "r"), 0);
+			server.send(200, "text/html", str);
+		}
+		SER.print("file deleted="); SER.println(res ? "true" : "false");
+		return;
+	}
+
+	// 404
 	String message = "Not found\n";
 	message += "URI: ";
 	message += uri;
@@ -359,50 +290,119 @@ void WebServer::handleRequest(String blank)	{
 	message += "\n";
 
 	server.send(404, "text/plain", message);
+	SER.println("404");
 }
 
-String printDirectory(File dir, int numTabs) {
-  String str;	
-  while (true) {
-    File entry =  dir.openNextFile();
-    if (! entry) {
-      // no more files
-      break;
-    }
+void WebServer::handleFileUpload(FileSystem fs) { 
+	HTTPUpload& upload = server.upload();
 
-	String entryname = String(entry.name());
+	if (upload.status == UPLOAD_FILE_START) {
+		String path = server.arg("path");
+		if (!path.endsWith("/")) path = path + "/";
 
-	if (!entryname.startsWith(".")) {
-		for (uint8_t i = 0; i < numTabs; i++) {
-			str = str + '\t';
+		if (fs == SDCARD) takeBusControl();
+		if (fs == SDCARD ? !SD.exists(path) : !LittleFS.exists(path)) {
+			sprintf(buffer, "creating directory [%s]", path.c_str());
+			SER.println(buffer);
+			if (fs == SDCARD) 
+				SD.mkdir(path);
+			else
+				LittleFS.mkdir(path);
 		}
+		if (fs == SDCARD)
+			uploadFile = SD.open(path + upload.filename, "w"); 
+		else 
+			uploadFile = LittleFS.open(path + upload.filename, "w"); 
 
-		str = str + entry.name();
-
-		if (entry.isDirectory()) {
-			str = str + "/\n" + printDirectory(entry, numTabs + 1);
-		} else {
-			// files have sizes, directories do not
-			str = str + "\t\t";
-			char buf[10];
-			sprintf(buf, "%d", entry.size());
-			str = str + buf;
-			time_t cr = entry.getCreationTime();
-			time_t lw = entry.getLastWrite();
-			struct tm * tmstruct = localtime(&cr);
-			char buf2[100];
-			sprintf(buf2, "\tCREATION: %d-%02d-%02d %02d:%02d:%02d", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec);
-			str = str + buf2;
-			tmstruct = localtime(&lw);
-			char buf3[100];
-			sprintf(buf3, "\tLAST WRITE: %d-%02d-%02d %02d:%02d:%02d\n", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec);
-			str = str + buf3;
-			yield();
-		}
+		sprintf(buffer, "uploading [%s] to [%s] . . .", upload.filename.c_str(), fs == SDCARD ? "SD" : "LittleFS");
+		SER.println(buffer);
+		return;
 	}
-    entry.close();
-  }
-  return str;
+
+	if (upload.status == UPLOAD_FILE_WRITE && uploadFile) {
+		uploadFile.write(upload.buf, upload.currentSize);
+	}
+
+	if (upload.status == UPLOAD_FILE_END) {
+		if(uploadFile) {           
+			uploadFile.close();    
+			server.sendHeader("Location","/index.html?upload_complete");
+			server.send(303);
+			sprintf(buffer, "completed [%s]", upload.filename.c_str());
+			SER.println(buffer);
+		} else {
+			sprintf(buffer, "upload failed for [%s]", upload.filename.c_str());
+			SER.println(buffer);
+			server.sendHeader("Location","/index.html?upload_failed");
+			server.send(303);
+		}
+		if (fs == SDCARD) relenquishBusControl();
+ 	}
+}
+
+String printDirectory(FileSystem fs, File dir, int numTabs) {
+  	String str;	
+	if (numTabs == 0) {
+		str = "<b>ESPWebSvr ";
+		str = str + (fs == SDCARD ? "SD Card" : "LittleFS"); 
+		str = str + " File List</b><pre>";
+	}
+
+	while (true) {
+		File entry =  dir.openNextFile();
+		if (! entry) {
+		// no more files
+		break;
+		}
+
+		String entryname = String(entry.name());
+
+		if (!entryname.startsWith(".")) {
+			if (!entry.isDirectory()) 
+				str = str + "<a href='/" + (fs == SDCARD ? "sd" : "fs") + "/" + entry.fullName() + "'>DOWNLOAD</a>\t";
+
+			for (uint8_t i = 0; i < numTabs; i++) {
+				str = str + '\t';
+			}
+
+			char nameBuf[34];
+			if (entry.isDirectory()) {
+				char dirname[strlen(entry.name() + 1)];
+				strcpy(dirname, entry.name());
+				sprintf(nameBuf, "\t\t%-31.31s", strcat(dirname, "/"));
+			} else {
+				sprintf(nameBuf, "%-30.30s", entry.name());
+			}
+
+			str = str + nameBuf;
+
+			if (entry.isDirectory()) {
+				str = str + "\t<a href='/DELETE" + (fs == SDCARD ? "SD" : "FS") + "/" + entry.fullName() + "'>DELETE</a>\n" + printDirectory(fs, entry, numTabs + 1);
+			} else {
+				// files have sizes, directories do not - captain obvious
+				str = str + "\t";
+				char buf[11];
+				sprintf(buf, "%10d", entry.size());
+				str = str + buf;
+				time_t cr = entry.getCreationTime();
+				time_t lw = entry.getLastWrite();
+				struct tm * tmstruct = localtime(&cr);
+				char buf2[100];
+				sprintf(buf2, "\tCREATION: %d-%02d-%02d %02d:%02d:%02d", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec);
+				str = str + buf2;
+				tmstruct = localtime(&lw);
+				char buf3[100];
+				sprintf(buf3, "\tLAST WRITE: %d-%02d-%02d %02d:%02d:%02d", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec);
+				str = str + buf3;
+				str = str + "\t<a href='/DELETE" + (fs == SDCARD ? "SD" : "FS") + "/" + entry.fullName() + "'>DELETE</a>\n";
+				yield();
+			}
+		}
+		entry.close();
+	}
+
+	if (numTabs == 0) str = str + "</pre><br><a href='/index.html'>Go Back</a>";
+	return str;
 }
 
 // ------------------------
