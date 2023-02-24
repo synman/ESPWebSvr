@@ -13,7 +13,13 @@ I am using this setup as a networked drive for 3D Printer running Marlin. Follow
 
 GCode can be directly uploaded from the slicer (Cura) to this remote drive, thereby simplifying the workflow. 
 
+#### DIY
 ![Printer Hookup Diagram](./PrinterHookup2.jpg)
+
+#### Prebuilt
+
+![s-l1600](https://user-images.githubusercontent.com/1299716/221260555-80218804-13b5-4fb6-b807-f3526bfa82da.jpg)
+
 
 ## Dependencies:
 1. Visual Studio Code
