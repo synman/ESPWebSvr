@@ -1,17 +1,13 @@
-# WebDAV Server and a 3D Printer
+# ESP Web Server / Network Shared SD Card
 This project was originally based on the work here:  https://github.com/ardyesp/ESPWebDAV
 
-~~WiFi WebDAV server using ESP8266 SoC. It maintains the filesystem on an SD card.~~
-
-So much of what is mentioned below is no longer valid in this distribution.   It is safe to call it a self standing project,
-not bound by any prior upstreams / code, as it has reached a point of divergence where I feel comfortable declaring it unique.
-
-**This document is grossly out of date at this point**
-
-Supports the basic WebDav operations - *PROPFIND*, *GET*, *PUT*, *DELETE*, *MKCOL*, *MOVE* etc.
-
-Once the WebDAV server is running on the ESP8266, a WebDAV client like Windows can access the filesystem on the SD card just like a cloud drive. The drive can also be mounted like a networked drive, and allows copying/pasting/deleting files on SD card remotely.
-
+## Features
+- HTTP based Network Configuration (SoftAP failover)
+- Captive Portal in SoftAP mode via DNS
+- Onboard LittleFS partition support
+- SD FAT16/FAT32 partition support
+- HTTP file management (upload / download / delete)
+ 
 ### 3D Printer
 I am using this setup as a networked drive for 3D Printer running Marlin. Following circuit with ESP8266 and a MicroSD adapter is fabricated on a PCB. A full size SD card adapter is glued to one end and provides access to all SPI data lines from printer. ESP8266 code avoids accessing micro SD card, when Marlin (printer's firmware) is reading/writing to it (detected using Chip Select line).
 
@@ -20,8 +16,9 @@ GCode can be directly uploaded from the slicer (Cura) to this remote drive, ther
 ![Printer Hookup Diagram](./PrinterHookup2.jpg)
 
 ## Dependencies:
-1. [ESP8266 Arduino Core version 2.4](https://github.com/esp8266/Arduino)
-2. [SdFat library](https://github.com/greiman/SdFat)
+1. Visual Studio Code
+2. PlatformIO 
+3. ESP8266 Arduino Framework
 
 ## Build And Deploy:
 Connect the SPI bus lines to SD card.
@@ -62,22 +59,27 @@ There is plenty of extra flash storage on this module and work is underway to sp
 After uploading the sketch to your WiFi-SD board, reset the adapter and wait approximately 60 seconds.  You can monitor its progress via the 
 PlatformIO Serial Monitor.  Once it indicates the WebDav server is running, connect to its Wi-Fi AP (espwebdav1).
 
-Open up a browser and visit http://192.168.4.1
+Open up a browser and visit http://192.168.4.1 or really any address.  The captive portal should direct you to the Web Admin form.
 
 <img width="201" alt="Screenshot 2023-02-19 at 11 56 41 AM" src="https://user-images.githubusercontent.com/1299716/219963213-3390b434-43d0-4752-9688-e7708b868d0a.png">
 
-Fill in the hostname, ssid, and password fields with values that meet your needs and click the `Save` button.  Press the back button in your 
-browser, refresh the page, and verify the values you entered meet your requirements.  Click the `Reboot` button to activate the changes.
+Fill in the hostname, ssid, and password fields with values that meet your needs and click the `Save` button. Verify the values you entered meet your requirements.  Click the `Reboot` button to activate the changes.
 
-After aproximiately 30 seconds, the WebDav server will be active and you can access it as described below, using the hostname you provided 
-if your DHCP / DNS server support it.  Otherwise, the adapter will be available via its mDNS name `{hostname}`.`local`
+After aproximiately 30 seconds, the Web Server server will be active on the configured wireless network and you can access it as described below, using the hostname you provided if your DHCP / DNS server support it.  Otherwise, the adapter will be available via its mDNS name `{hostname}`.`local`
 
 You can revist the settings page at any time to reboot the adapter or update its settings.
 
 ## Use:
-To access the drive from Windows, type ```\\esp_hostname_or_ip\DavWWWRoot``` at the Run prompt, or use Map Network Drive menu in Windows Explorer.
 
-`cadaver` is an excellent command line tool for accessing webdav devices if you are having problems using Windows/MacOS built-in options.
+Upload files and create directories via the `File Upload Form`.
+
+<img width="361" alt="Screenshot 2023-02-24 at 12 37 00 PM" src="https://user-images.githubusercontent.com/1299716/221257223-fb68ee1a-c307-4513-8b82-d0c8cf95555a.png">
+
+View, download, and delete files via the respective File List pages.
+
+<img width="1121" alt="Screenshot 2023-02-24 at 1 01 10 PM" src="https://user-images.githubusercontent.com/1299716/221257532-4af895fb-1559-4217-8b6e-d3dee7459851.png">
+
+<img width="1064" alt="Screenshot 2023-02-24 at 1 02 15 PM" src="https://user-images.githubusercontent.com/1299716/221257555-43f11a62-c668-4344-9719-69d900e3f08f.png">
 
 ## References
 Marlin Firmware - [http://marlinfw.org/](http://marlinfw.org/)   
