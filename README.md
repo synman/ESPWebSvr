@@ -53,7 +53,7 @@ This project is fully compatible with PlatformIO. Additionally, OTA is fully sup
 Be sure to reset your adapter using its reset button after uploading a new firmware over USB.  The ESP8266 series modules will not properly reset / reboot
 after a USB flash if not reset via their reset button first.  This limitation does not apply to OTA updates.
 
-There is plenty of extra flash storage on this module and work is underway to split the rom with a 1mb spiifs partition (too many conflicts with sdFat at the moment but the spiffs FS is there if you `pio run -t uploadFs`)
+There is extra flash storage on this module and the project's `platformio.ini` file has been configured to flash the atached ESP8266 with a 2m1m partition scheme, essentially providing a 1mb LittleFS partition that can be used to host and serve static content.
 
 ## Initial Setup
 After uploading the sketch to your WiFi-SD board, reset the adapter and wait approximately 60 seconds.  You can monitor its progress via the 
