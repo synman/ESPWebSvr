@@ -88,7 +88,9 @@ Cura Slicer - [https://ultimaker.com/en/products/ultimaker-cura-software](https:
 
 3D Printer LCD and SD Card Interface - [http://reprap.org/wiki/RepRapDiscount_Full_Graphic_Smart_Controller](http://reprap.org/wiki/RepRapDiscount_Full_Graphic_Smart_Controller)   
 
-LCD Schematics - [http://reprap.org/mediawiki/images/7/79/LCD_connect_SCHDOC.pdf](http://reprap.org/mediawiki/images/7/79/LCD_connect_SCHDOC.pdf)   
+LCD Schematics - [http://reprap.org/mediawiki/images/7/79/LCD_connect_SCHDOC.pdf](http://reprap.org/mediawiki/images/7/79/LCD_connect_SCHDOC.pdf) 
+
+Cheap Prebuilt ESP8266 WiFi SD Cards - https://www.aliexpress.us/item/2255800805111104.html and https://www.ebay.com/itm/203949035388
 
 
 
