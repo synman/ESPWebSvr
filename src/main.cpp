@@ -58,8 +58,7 @@ void setup() {
 	
 	EEPROM.begin(EEPROM_SIZE);
 	uint8_t *p = (uint8_t*)(&config);
-	for (uint8 i = 0; i < sizeof(config); i++)
-	{
+	for (uint8 i = 0; i < sizeof(config); i++) {
 		*(p + i) = EEPROM.read(i);
 	}
 	EEPROM.commit();
