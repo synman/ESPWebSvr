@@ -2,7 +2,9 @@
 
 #include <Arduino.h>
 #include <ArduinoOTA.h>
+
 #include "LittleFS.h"
+#include "time.h"
 
 #include <DNSServer.h> 
 #include <EEPROM.h>
@@ -25,6 +27,7 @@ const byte DNS_PORT = 53;
 
 WebServer webserver;
 char buf[255];
+struct tm timeinfo;
 
 TelnetSpy SerialAndTelnet;
 
@@ -55,7 +58,7 @@ void setup() {
 	wifi_fpm_set_sleep_type(NONE_SLEEP_T);
 
 	SER.println("\nESPWebSvr setup\n");
-	
+
 	EEPROM.begin(EEPROM_SIZE);
 	uint8_t *p = (uint8_t*)(&config);
 	for (uint8 i = 0; i < sizeof(config); i++) {
@@ -122,6 +125,17 @@ void setup() {
 	} else {
 		updateIndexTemplate(hostname, ssid, pwd);
 	}
+
+	// initialize time
+	configTime(0, 0, "pool.ntp.org"); 
+	setenv("TZ", "EST+5EDT,M3.2.0/2,M11.1.0/2", 1);
+	tzset();
+
+	if(!getLocalTime(&timeinfo)) {
+		SER.println("Failed to obtain time");
+	}
+	sprintf(buf, "\n%4d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+	SER.println(buf);
 
 	// start the web server
 	webserver.init();

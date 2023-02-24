@@ -33,6 +33,13 @@ void WebServer::init() {
 
 	// logging hook
 	server.addHook([this](const String& method, const String& url, WiFiClient* client, ESP8266WebServer::ContentTypeFunction contentType) {
+		struct tm timeinfo;
+		if(!getLocalTime(&timeinfo)) {
+			SER.println("Failed to obtain time");
+		}
+		sprintf(buffer, "\n%4d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+		SER.println(buffer);
+
 		sprintf(buffer, "%.4f %s %s %s %s %d", (float) millis() / 1000, method.c_str(), url.c_str(), getMimeType(url).c_str(), client->remoteIP().toString().c_str(), client->getKeepAliveCount());
 		SER.println(buffer);
 		return ESP8266WebServer::CLIENT_REQUEST_CAN_CONTINUE;
