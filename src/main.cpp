@@ -120,12 +120,6 @@ void setup() {
 	SER.print("        RSSI: "); SER.println(WiFi.RSSI());
 	SER.print("        Mode: "); SER.println(WiFi.getPhyMode());
 	
-	if(!LittleFS.begin()){
-		SER.println("An Error has occurred while mounting LittleFS");
-	} else {
-		updateIndexTemplate(hostname, ssid, pwd);
-	}
-
 	// initialize time
 	configTime(0, 0, "pool.ntp.org"); 
 	setenv("TZ", "EST+5EDT,M3.2.0/2,M11.1.0/2", 1);
@@ -136,6 +130,12 @@ void setup() {
 	}
 	sprintf(buf, "\n%4d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 	SER.println(buf);
+
+	if(!LittleFS.begin()){
+		SER.println("An Error has occurred while mounting LittleFS");
+	} else {
+		updateIndexTemplate(hostname, ssid, pwd);
+	}
 
 	// start the web server
 	webserver.init();
@@ -151,10 +151,10 @@ void setup() {
 void loop() {
 // ------------------------
 	// reboot every 6 hours
-	if (sys_time / 1000 / 1000 + 21600 <= system_get_time() / 1000 / 1000)  {
-		SER.print("Requesting scheduled reboot ref="); SER.print(sys_time / 1000 / 1000 + 21600); SER.print(" cur="); SER.println(system_get_time() / 1000 / 1000);
-		reboot = true;    
-	}
+	// if (sys_time / 1000 / 1000 + 21600 <= system_get_time() / 1000 / 1000)  {
+	// 	SER.print("Requesting scheduled reboot ref="); SER.print(sys_time / 1000 / 1000 + 21600); SER.print(" cur="); SER.println(system_get_time() / 1000 / 1000);
+	// 	reboot = true;    
+	// }
 
 	if (reboot) {
 		reboot = false;
@@ -228,8 +228,22 @@ void updateIndexTemplate(const char* hostname, const char* ssid, const char* pwd
 			html.replace("{host}", hostname);
 		}
 
-		html.replace("{ssid}", ssid);
-		html.replace("{pass}", pwd);
+		while (html.indexOf("{ssid}", 0) != -1) {
+			html.replace("{ssid}", ssid);
+		}
+
+		while (html.indexOf("{pass}", 0) != -1) {
+			html.replace("{pass}", pwd);
+		}
+
+		if(getLocalTime(&timeinfo)) {
+			sprintf(buf, "\n%4d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+			while (html.indexOf("{timestamp}", 0) != -1) {
+				html.replace("{timestamp}", buf);
+			}			
+		} else {
+			SER.println("Failed to obtain time");
+		}
 
 		if (LittleFS.exists("/index.html")) LittleFS.remove("/index.html");
 		File _index = LittleFS.open("/index.html", "w");
